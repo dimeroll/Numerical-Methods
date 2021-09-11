@@ -1,0 +1,89 @@
+﻿#include <iostream>
+#include <math.h>
+using namespace std;
+int IterationsN = 0, IterationsD = 0, IterationsR = 0;
+
+const double eps = 0.0000000001;
+const double lambda = 0.1;
+
+//Function
+double F(double x)
+{
+    return exp(x) - 5*x + 1;
+}
+
+double Fderivative(double x)
+{
+    return exp(x) - 5;
+}
+
+double Phi(double x)
+{
+    return lambda * F(x) + x;
+}
+
+
+double Dychotomia(double a, double b)
+{
+    while (b - a > eps)
+    {
+        double  c = (a + b) / 2;
+        if (F(a) * F(c) < 0)
+            b = c;
+        else if (F(c) * F(b) < 0)
+            a = c;
+
+        IterationsD++;
+    }
+
+    return (a + b) / 2;
+}
+
+
+double NewtonMethod(double x0)
+{
+    double Xprev = x0;
+    double Xnext = Xprev - F(Xprev) / Fderivative(Xprev);
+    while (abs(Xprev - Xnext) > eps)
+    {
+        Xprev = Xnext;
+        Xnext = Xprev - F(Xprev) / Fderivative(Xprev);
+
+        IterationsN++;
+    }
+
+    return (Xprev + Xnext) / 2;
+}
+
+
+double Relaxation(double x0)
+{
+    double Xprev = x0;
+    double Xnext = Phi(Xprev);
+    while (abs(Xprev - Xnext) > eps)
+    {
+        Xprev = Xnext;
+        Xnext = Phi(Xprev);
+
+        IterationsR++;
+    }
+
+    return (Xprev + Xnext) / 2;
+}
+
+
+int main()
+{
+    double Xres = Dychotomia(0, 1);
+    cout <<"Dychotomia " << (Xres - remainder(Xres, eps)) << endl;
+    cout << "Iterations " << IterationsD << endl;
+
+    Xres = NewtonMethod(0);
+    cout << "Newton Method " << (Xres - remainder(Xres, eps)) << endl;
+    cout << "Iterations " << IterationsN << endl;
+
+    Xres = Relaxation(0);
+    cout << "Relaxation " << (Xres - remainder(Xres, eps)) << endl;
+    cout << "Iterations " << IterationsR << endl;
+}
+
