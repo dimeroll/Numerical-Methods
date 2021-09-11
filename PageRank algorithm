@@ -1,0 +1,80 @@
+#include <iostream>
+using namespace std;
+
+const int n = 4;
+const double eps = 0.00001;
+
+int TrasitionMatrix[n][n];
+double ProbabilityMatrix[n][n];
+int ColumnSum[n];
+double x0[n];
+double xprevious[n];
+double xnext[n];
+double delta;
+double beta = 0.9;
+
+int main()
+{
+    for (int i = 0; i < n; i++)
+        xnext[i] = 1.0 / n;
+
+    for (int j = 0; j < n; j++)
+        ColumnSum[j] = 0;
+
+    cout << "Transition Matrix" << endl;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+        {
+            cin >> TrasitionMatrix[i][j];
+            ColumnSum[j] += TrasitionMatrix[i][j];
+        }
+
+    cout << endl;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            ProbabilityMatrix[i][j] = TrasitionMatrix[i][j] * 1.0 / ColumnSum[j];
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+            cout << ProbabilityMatrix[i][j] << " ";
+        cout << endl;
+    }
+
+    do
+    {
+        for (int i = 0; i < n; i++)
+            xprevious[i] = xnext[i];
+
+        for (int i = 0; i < n; i++)
+        {
+            xnext[i] = 0;
+            for (int j = 0; j < n; j++)
+            {
+                xnext[i] += beta * ProbabilityMatrix[i][j] * xprevious[j] + (1-beta) / n;
+            }
+        }
+
+        double NormXnext = 0;
+        for (int i = 0; i < n; i++)                              // Xnext vector normalization
+            NormXnext += xnext[i];
+
+        for (int i = 0; i < n; i++)
+            xnext[i] = xnext[i] / NormXnext;
+
+        delta = abs(xprevious[0] - xnext[0]);
+        for (int i = 1; i < n; i++)
+            if (abs(xprevious[i] - xnext[i]) > delta)
+                delta = abs(xprevious[i] - xnext[i]);
+
+        /*for (int i = 0; i < n; i++)
+            cout << xnext[i] << " ";
+        cout << endl;*/
+
+    } while (delta > eps);
+
+    cout << "Pages rankes : ";
+    for (int i = 0; i < n; i++)
+        cout << xnext[i] << " ";
+}
+
