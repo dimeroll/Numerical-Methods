@@ -1,0 +1,391 @@
+#include <iostream>
+#include <array>
+#include <math.h>
+#include <ctime>
+
+using namespace std;
+
+const int n = 20;
+double HilbertMatrix[n + 1][n + 1];
+double Matrix[n + 1][n + 1]; //= { {0, 0, 0}, {0, 2, 1}, {0, 4, 5} };
+double B[n + 1]; // = { 0, 6, 7 };
+
+double x[n + 1];
+double xJacobi[n + 1];
+double xZeidel[n + 1];
+double xLU[n + 1];
+
+double eps = 0.0000001;
+
+int IterationsJacobi = 1, IterationsZeidel = 1;
+
+void HilbertMatrixGen()
+{
+    for (int r = 1; r <= n; r++)
+        for (int c = 1; c <= n; c++)
+            HilbertMatrix[r][c] = 1.0/(r + c - 1);
+
+    /*for (int r = 1; r <= n; r++)
+    {
+        double sum = 0;
+        for (int c = 1; c <= n; c++)
+            if (c != r) sum += HilbertMatrix[r][c];
+
+        while (HilbertMatrix[r][r] <= sum)
+        {
+            HilbertMatrix[r][r] = 10 * HilbertMatrix[r][r];
+        }
+    }*/
+}
+
+void RandomMatrixGen()
+{
+    for (int r = 1; r <= n; r++)
+        for (int c = 1; c <= n; c++)
+            Matrix[r][c] = rand() % 200 - 100;
+
+    for (int r = 1; r <= n; r++)
+    {
+        double sum = 0;
+        for (int c = 1; c <= n; c++)
+            if (c != r) sum += abs(Matrix[r][c]);
+
+        while (abs(Matrix[r][r]) <= sum)
+        {
+            Matrix[r][r] = 1 + Matrix[r][r];
+            Matrix[r][r] = 10 * Matrix[r][r];
+        }
+    }
+}
+
+void BGen()
+{
+    for (int i = 1; i <= n; i++)
+    {
+        double sum = 0;
+        for (int j = 1; j < n; j++)
+            sum += Matrix[i][j];
+        B[i] = sum;
+    }
+}
+
+void HMintoM()
+{
+    for (int i = 1; i <= n; i++)
+        for (int j = 1; j <= n; j++)
+            Matrix[i][j] = HilbertMatrix[i][j];
+}
+
+void GaussMethod()
+{
+    double b[n + 1];
+    double matrix[n + 1][n + 1];
+
+    for (int h = 0; h <= n; h++)
+        b[h] = B[h];
+
+    for (int h = 0; h <= n; h++)
+        for (int l = 0; l <= n; l++)
+            matrix[h][l] = Matrix[h][l];
+
+
+    for (int i = 1; i < n; i++)
+    {
+        double maxInColumn = abs(matrix[i][i]);
+        int NumberOfmaxInColumn = i;
+        for (int j = i; j <= n; j++)
+            if (abs(matrix[j][i]) > maxInColumn)
+            {
+                maxInColumn = abs(matrix[j][i]);
+                NumberOfmaxInColumn = j;
+            }
+
+        if (NumberOfmaxInColumn != i)               // міняємо місцями даний рядок і рядок з макс елементом
+        {
+            for (int k = 1; k <= n; k++)
+            {
+                double c = matrix[i][k];
+                matrix[i][k] = matrix[NumberOfmaxInColumn][k];
+                matrix[NumberOfmaxInColumn][k] = c;
+            }
+
+            double c = b[i];
+            b[i] = b[NumberOfmaxInColumn];
+            b[NumberOfmaxInColumn] = c;
+        }
+
+        for (int j = i + 1; j <= n; j++)
+        {
+            maxInColumn = matrix[i][i];
+            double multiplier = matrix[j][i];
+            for (int k = i; k <= n; k++)
+            {
+                matrix[j][k] = matrix[j][k] - matrix[i][k] * multiplier / maxInColumn;
+            }
+
+            b[j] = b[j] - b[i] * multiplier / maxInColumn;
+        }
+    }
+
+    x[n] = b[n] / matrix[n][n];
+    for (int j = n - 1; j >= 1; j--)
+    {
+        double subtrahend = 0;
+        for (int k = n; k > j; k--)
+            subtrahend += matrix[j][k] * x[k];
+
+        x[j] = (b[j] - subtrahend) / matrix[j][j];
+    }
+}
+
+
+void LUmethod()
+{
+    double L_Matrix[n + 1][n + 1];
+    double U_Matrix[n + 1][n + 1];
+
+    for (int i = 1; i <= n; i++)
+    {
+        for (int j = 1; j <= n; j++)
+        {
+            U_Matrix[i][j] = 0;
+            if (i == j) L_Matrix[i][i] = 1;
+            else L_Matrix[i][j] = 0;
+        }
+    }
+
+    for(int i=1; i<=n; i++)
+        for (int j = 1; j <= n; j++)
+        {
+            if (i <= j)
+            {
+                double Sum = 0;
+                for (int k = 1; k <= i - 1; k++)
+                    Sum += L_Matrix[i][k] * U_Matrix[k][j];
+
+                U_Matrix[i][j] = Matrix[i][j] - Sum;
+
+            }
+
+            if (i > j)
+            {
+                double Sum = 0;
+                for (int k = 1; k <= j - 1; k++)
+                    Sum += L_Matrix[i][k] * U_Matrix[k][j];
+
+                L_Matrix[i][j] = (Matrix[i][j] - Sum) / U_Matrix[j][j];
+            }
+        }
+
+    double y[n + 1];
+    y[1] = B[1]/L_Matrix[1][1];
+    for (int i = 2; i <= n; i++)
+    {
+        double subtrahend = 0;
+        for (int j = 1; j <= i - 1; j++)
+            subtrahend += L_Matrix[i][j] * y[j];
+
+        y[i] = (B[i] - subtrahend) / L_Matrix[i][i];
+    }
+
+    xLU[n] = y[n] / U_Matrix[n][n];
+    for (int i = n - 1; i >= 1; i--)
+    {
+        double subtrahend = 0;
+        for (int j = n; j > i; j--)
+            subtrahend += U_Matrix[i][j] * xLU[j];
+
+        xLU[i] = (y[i] - subtrahend) / U_Matrix[i][i];
+    }
+}
+
+
+void JacobiMethod()
+{
+    double Beta[n + 1];
+    double Xprev[n + 1];
+    double Xnext[n + 1];
+    double Alfa[n + 1][n + 1];
+    double delta = 0;
+
+    for (int i = 1; i <= n; i++)                 //заповнюємо вектор Бета
+    {
+        Beta[i] = B[i] / Matrix[i][i];
+        Xprev[i] = Beta[i];
+    }                                                    
+
+    for(int r = 1; r<=n; r++)             // заповнюємо матрицю Альфа
+        for (int c = 1; c <= n; c++)
+        {
+            if (r == c) Alfa[r][r] = 0;
+            else
+                Alfa[r][c] = - Matrix[r][c] / Matrix[r][r];
+        }
+
+    for (int r = 1; r <= n; r++)
+    {
+        Xnext[r] = Beta[r];
+        for (int col = 1; col <= n; col++)
+        {
+            Xnext[r] += Alfa[r][col] * Xprev[col];
+        }
+    }
+    
+    delta = abs(Xnext[1] - Xprev[1]);
+    for (int h = 2; h <= n; h++)
+        if (abs(Xprev[h] - Xnext[h]) > delta)
+            delta = abs(Xprev - Xnext);
+
+    while (delta > eps)
+    {
+        IterationsJacobi++;
+
+        for (int h = 1; h <= n; h++)
+            Xprev[h] = Xnext[h];
+
+        for (int r = 1; r <= n; r++)
+        {
+            Xnext[r] = Beta[r];
+            for (int col = 1; col <= n; col++)
+            {
+                Xnext[r] += Alfa[r][col] * Xprev[col];
+            }
+        }
+
+        delta = abs(Xnext[1] - Xprev[1]);
+        for (int h = 2; h <= n; h++)
+            if (abs(Xprev[h] - Xnext[h]) > delta)
+                delta = abs(Xprev - Xnext);
+    }
+
+    for (int h = 1; h <= n; h++)
+        xJacobi[h] = Xnext[h];
+}
+
+
+
+void ZeidelMethod()
+{
+    double Beta[n + 1];
+    double Xprev[n + 1];
+    double Xnext[n + 1];
+    double Alfa[n + 1][n + 1];
+    double delta = 0;
+
+    for (int i = 1; i <= n; i++)                 //заповнюємо вектор Бета
+    {
+        Beta[i] = B[i] / Matrix[i][i];
+        Xprev[i] = Beta[i];
+    }
+
+    for (int r = 1; r <= n; r++)             // заповнюємо матрицю Альфа
+        for (int c = 1; c <= n; c++)
+        {
+            if (r == c) Alfa[r][r] = 0;
+            else
+                Alfa[r][c] = -Matrix[r][c] / Matrix[r][r];
+        }
+
+    for (int r = 1; r <= n; r++)
+    {
+        Xnext[r] = Beta[r];
+        for (int col = 1; col < r; col++)
+        {
+            Xnext[r] += Alfa[r][col] * Xnext[col];
+        }
+
+        for (int col = r; col <= n; col++)
+        {
+            Xnext[r] += Alfa[r][col] * Xprev[col];
+        }
+    }
+
+    delta = abs(Xnext[1] - Xprev[1]);
+    for (int h = 2; h <= n; h++)
+        if (abs(Xprev[h] - Xnext[h]) > delta)
+            delta = abs(Xprev - Xnext);
+
+    while (delta > eps)
+    {
+        IterationsZeidel++;
+
+        for (int h = 1; h <= n; h++)
+            Xprev[h] = Xnext[h];
+
+        for (int r = 1; r <= n; r++)
+        {
+            Xnext[r] = Beta[r];
+            for (int col = 1; col < r; col++)
+            {
+                Xnext[r] += Alfa[r][col] * Xnext[col];
+            }
+
+            for (int col = r; col <= n; col++)
+            {
+                Xnext[r] += Alfa[r][col] * Xprev[col];
+            }
+        }
+
+        delta = abs(Xnext[1] - Xprev[1]);
+        for (int h = 2; h <= n; h++)
+            if (abs(Xprev[h] - Xnext[h]) > delta)
+                delta = abs(Xprev - Xnext);
+    }
+
+    for (int h = 1; h <= n; h++)
+        xZeidel[h] = Xnext[h];
+}
+
+double Residual(double vector[n + 1])
+{
+    double Mx[n + 1];
+    for (int i = 1; i <= n; i++)
+    {
+        Mx[i] = 0;
+        for (int j = 1; j <= n; j++)
+            Mx[i] += Matrix[i][j] * vector[j];
+    }
+
+    double res = 0;
+    for (int i = 1; i <= n; i++)
+        res += (B[i] - Mx[i]) * (B[i] - Mx[i]);
+
+    return sqrt(res);
+}
+
+int main()
+{
+    srand(time(0));
+    setlocale(LC_ALL, "Ukrainian");
+    RandomMatrixGen();
+    HilbertMatrixGen();
+    HMintoM();
+    BGen();
+
+    /*for (int l = 1; l <= n; l++)
+    {
+        for (int h = 1; h <= n; h++)
+            cout << Matrix[l][h] << " ";
+        cout << "|" << B[l] << endl;
+    }*/
+
+    cout << "Метод Гауса з LU розкладом \nКоренi вiд x1 до x" << n << " : ";
+    LUmethod();
+    for (int i = 1; i <= n; i++)
+        cout << xLU[i] << " ";
+    cout << endl << endl;
+    cout << Residual(xLU);
+
+    JacobiMethod();
+    cout << "Метод  Якобi \nIтерацiй " << IterationsJacobi << "\nКоренi вiд x1 до x" << n << " : ";
+    for (int i = 1; i <= n; i++)
+        cout << xJacobi[i] << " ";
+    cout << endl << endl;
+
+    ZeidelMethod();
+    cout << "Метод  Зейделя \nIтерацiй " << IterationsZeidel << "\nКоренi вiд x1 до x" << n << " : ";
+    for (int i = 1; i <= n; i++)
+        cout << xZeidel[i] << " ";
+    cout << endl;
+}
+
